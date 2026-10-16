@@ -31,3 +31,7 @@ negative result, with its numbers.
 
 - Report CPU latency (4 threads, full note) for both models.
 - Don't claim a head-to-head win over any closed model that publishes no benchmark numbers.
+
+## Note added 2026-10-17, before any pretraining job ran
+
+The candidate has 239.1M parameters, not ~220M: 16 layers, d=1024, 32k vocabulary. The rule above is unchanged.

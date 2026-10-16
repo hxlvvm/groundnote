@@ -4,6 +4,7 @@ transformers==5.17.0
 tokenizers==0.23.3
 # training / evaluation
 accelerate==1.15.0
+pyarrow==26.0.0
 rouge-score==0.1.2
 pytest==9.1.1
 # synthetic data generation only (GPU)
