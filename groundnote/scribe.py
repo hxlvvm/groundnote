@@ -8,7 +8,7 @@ import html
 import time
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, DynamicCache
 
 from groundnote.check import check_note, parse_dialogue
 
@@ -31,14 +31,26 @@ def write_note(model, tok, dialogue, headers=STANDARD, n_best=1, max_len=3072, m
     if len(ids) > budget:                                    # same head+tail truncation as training
         ids = ids[: budget * 3 // 5] + ids[-(budget - budget * 3 // 5):]
     turns, out = parse_dialogue(dialogue), []
+    cache, seq = DynamicCache(), []                          # seq: the token ids whose K/V the cache holds
     for h in headers:
         ids = ids + tok(f"<section> {h}\n", add_special_tokens=False)["input_ids"]
+        # keep the cache only up to where it agrees with ids (re-tokenized text can differ from the generated ids);
+        # leave >= 1 token uncached so generate has something to prefill
+        k = next((i for i, (a, b) in enumerate(zip(seq, ids)) if a != b), min(len(seq), len(ids)))
+        cache.crop(min(k, len(ids) - 1) - cache.get_seq_length())
         x = torch.tensor([ids], device=model.device)
         kw = dict(do_sample=True, temperature=0.7, top_p=0.9, num_return_sequences=n_best) if n_best > 1 else dict(do_sample=False)
-        gen = model.generate(x, attention_mask=torch.ones_like(x), max_new_tokens=max_new, eos_token_id=stop,
-                             pad_token_id=tok.pad_token_id, repetition_penalty=1.1, **kw)[:, x.shape[1]:]
+        if n_best > 1:
+            cache.batch_repeat_interleave(n_best)            # generate expands input tensors, never a Cache
+        # full ids + full mask: generate feeds only the uncached tail, repetition_penalty still sees all of ids
+        full = model.generate(x, attention_mask=torch.ones_like(x), max_new_tokens=max_new, eos_token_id=stop,
+                              pad_token_id=tok.pad_token_id, repetition_penalty=1.1, past_key_values=cache, **kw)
+        gen = full[:, x.shape[1]:]
         texts = [tok.decode([t for t in g.tolist() if t not in stop and t != tok.pad_token_id]).strip() for g in gen]
         best = min(range(len(texts)), key=lambda i: flags(texts[i], turns)) if n_best > 1 else 0
+        if n_best > 1:
+            cache.batch_select_indices([best])
+        seq = full[best, :cache.get_seq_length()].tolist()
         out.append((h, texts[best]))
         ids = ids + tok(texts[best] + "\n", add_special_tokens=False)["input_ids"]
     return out
