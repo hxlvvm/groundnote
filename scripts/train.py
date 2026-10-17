@@ -10,7 +10,8 @@ import time
 
 import torch
 from tokenizers import ByteLevelBPETokenizer
-from transformers import (AutoModelForCausalLM, AutoTokenizer, DataCollatorForSeq2Seq, LlamaConfig, LlamaForCausalLM,
+from transformers import (AutoModelForCausalLM, AutoTokenizer, DataCollatorForSeq2Seq, EarlyStoppingCallback, LlamaConfig,
+                          LlamaForCausalLM,
                           PreTrainedTokenizerFast, Trainer, TrainerCallback, TrainingArguments)
 from transformers.trainer_utils import get_last_checkpoint
 
@@ -21,11 +22,11 @@ class StopAfter(TrainerCallback):
     """Checkpoint and stop at a wall-clock deadline (epoch seconds), so the next chain link resumes."""
 
     def __init__(self, end):
-        self.end = end
+        self.end, self.fired = end, False
 
     def on_step_end(self, args, state, control, **kw):
         if time.time() > self.end:
-            control.should_save = control.should_training_stop = True
+            control.should_save = control.should_training_stop = self.fired = True
 
 
 def load(path, limit=None):
@@ -98,14 +99,16 @@ def main():
         warmup_steps=0.03, weight_decay=0.1, per_device_train_batch_size=a.batch, per_device_eval_batch_size=a.batch,
         gradient_accumulation_steps=a.grad_accum,
         bf16=True, train_sampling_strategy="group_by_length", length_column_name="length", eval_strategy="epoch",
-        save_strategy="epoch", save_total_limit=1, load_best_model_at_end=True, metric_for_best_model="eval_loss",
+        save_strategy="epoch", save_total_limit=2,             # 1 would delete the deadline checkpoint at train end
+        load_best_model_at_end=True, metric_for_best_model="eval_loss",
         logging_steps=50, report_to="none", seed=0, dataloader_num_workers=2, max_grad_norm=1.0)
+    stop = StopAfter(a.stop_at or float("inf"))
     pad = DataCollatorForSeq2Seq(tok, padding=True, label_pad_token_id=-100)
     trainer = Trainer(model=model, args=args, train_dataset=tr, eval_dataset=dv, processing_class=tok,
                       data_collator=lambda b: pad([{k: v for k, v in x.items() if k != "length"} for x in b]),
-                      callbacks=[StopAfter(a.stop_at)] if a.stop_at else [])
+                      callbacks=[EarlyStoppingCallback(early_stopping_patience=1)] + [stop] * bool(a.stop_at))
     trainer.train(resume_from_checkpoint=get_last_checkpoint(a.run_dir))
-    if trainer.state.global_step < trainer.state.max_steps:
+    if stop.fired and trainer.state.global_step < trainer.state.max_steps:   # deadline hit; early stopping finishes
         print(f"stopped at step {trainer.state.global_step}/{trainer.state.max_steps}; rerun to resume")
         return
     trainer.save_model(f"{a.run_dir}/final")
