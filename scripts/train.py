@@ -6,13 +6,26 @@ Format per example: <dialogue>\\n{dialogue}\\n<section> HEADER\\n{text}\\n ... <
 import argparse
 import json
 import random
+import time
 
 import torch
 from tokenizers import ByteLevelBPETokenizer
 from transformers import (AutoModelForCausalLM, AutoTokenizer, DataCollatorForSeq2Seq, LlamaConfig, LlamaForCausalLM,
-                          PreTrainedTokenizerFast, Trainer, TrainingArguments)
+                          PreTrainedTokenizerFast, Trainer, TrainerCallback, TrainingArguments)
+from transformers.trainer_utils import get_last_checkpoint
 
 SPECIAL = ["<pad>", "<eos>", "<dialogue>", "<section>"]
+
+
+class StopAfter(TrainerCallback):
+    """Checkpoint and stop at a wall-clock deadline (epoch seconds), so the next chain link resumes."""
+
+    def __init__(self, end):
+        self.end = end
+
+    def on_step_end(self, args, state, control, **kw):
+        if time.time() > self.end:
+            control.should_save = control.should_training_stop = True
 
 
 def load(path, limit=None):
@@ -59,6 +72,7 @@ def main():
     ap.add_argument("--batch", type=int, default=16)
     ap.add_argument("--grad-accum", type=int, default=1)    # big-vocab inits: smaller --batch, same effective batch
     ap.add_argument("--limit", type=int)                     # overfit gate: tiny train set
+    ap.add_argument("--stop-at", type=float)                 # epoch-seconds deadline for this chain link; a rerun resumes
     a = ap.parse_args()
     random.seed(0)
     torch.manual_seed(0)
@@ -88,8 +102,12 @@ def main():
         logging_steps=50, report_to="none", seed=0, dataloader_num_workers=2, max_grad_norm=1.0)
     pad = DataCollatorForSeq2Seq(tok, padding=True, label_pad_token_id=-100)
     trainer = Trainer(model=model, args=args, train_dataset=tr, eval_dataset=dv, processing_class=tok,
-                      data_collator=lambda b: pad([{k: v for k, v in x.items() if k != "length"} for x in b]))
-    trainer.train()
+                      data_collator=lambda b: pad([{k: v for k, v in x.items() if k != "length"} for x in b]),
+                      callbacks=[StopAfter(a.stop_at)] if a.stop_at else [])
+    trainer.train(resume_from_checkpoint=get_last_checkpoint(a.run_dir))
+    if trainer.state.global_step < trainer.state.max_steps:
+        print(f"stopped at step {trainer.state.global_step}/{trainer.state.max_steps}; rerun to resume")
+        return
     trainer.save_model(f"{a.run_dir}/final")
     tok.save_pretrained(f"{a.run_dir}/final")
     print("final eval", trainer.evaluate())

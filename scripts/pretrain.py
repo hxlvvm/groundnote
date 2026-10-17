@@ -2,23 +2,22 @@
 
 usage: python -m scripts.pretrain tok   PT_DIR DATA_DIR     BPE 32k on ~300 MB FineWeb + train.jsonl -> PT_DIR/tok
        python -m scripts.pretrain pack  PT_DIR DATA_DIR     all four shards -> PT_DIR/tokens.bin + val.bin (uint16)
-       python -m scripts.pretrain train PT_DIR RUN_DIR HOURS   stops cleanly after HOURS; rerun resumes; RUN_DIR/final at the end
+       python -m scripts.pretrain train PT_DIR RUN_DIR STOP_AT   stops cleanly at epoch-seconds STOP_AT; rerun resumes; RUN_DIR/final at the end
 """
 import glob
 import os
 import sys
-import time
 from itertools import chain
 
 import numpy as np
 import pyarrow.parquet as pq
 import torch
 from tokenizers import ByteLevelBPETokenizer, Tokenizer
-from transformers import (LlamaConfig, LlamaForCausalLM, PreTrainedTokenizerFast, Trainer, TrainerCallback,
+from transformers import (LlamaConfig, LlamaForCausalLM, PreTrainedTokenizerFast, Trainer,
                           TrainingArguments, default_data_collator, set_seed)
 from transformers.trainer_utils import get_last_checkpoint
 
-from scripts.train import SPECIAL, load, target_text
+from scripts.train import SPECIAL, StopAfter, load, target_text
 
 FINEWEB = "fineweb/sample/10BT/00[0-3]_00000.parquet"
 CTX, BATCH, ACCUM = 3072, 8, 16                              # 8 x 16 = 128 seqs ~ 0.4M tokens/step
@@ -87,17 +86,6 @@ class Slices(torch.utils.data.Dataset):
         return {"input_ids": x, "labels": x}
 
 
-class StopAfter(TrainerCallback):
-    """Checkpoint and stop once the time budget is spent, so the next chain link resumes."""
-
-    def __init__(self, hours):
-        self.end = time.time() + hours * 3600
-
-    def on_step_end(self, args, state, control, **kw):
-        if time.time() > self.end:
-            control.should_save = control.should_training_stop = True
-
-
 def tok(pt_dir, data_dir):
     task = (r["dialogue"] + "\n" + target_text(r["sections"]) for r in load(f"{data_dir}/train.jsonl"))
     t = build_tok(chain(chain.from_iterable(docs(fineweb_files(data_dir)[:1], 300_000_000)), task), f"{pt_dir}/tok")
@@ -108,7 +96,7 @@ def pack(pt_dir, data_dir):
     pack_docs(docs(fineweb_files(data_dir)), pt_dir)
 
 
-def train(pt_dir, run_dir, hours):
+def train(pt_dir, run_dir, stop_at):
     set_seed(0)
     tk = PreTrainedTokenizerFast.from_pretrained(f"{pt_dir}/tok")
     ds = Slices(f"{pt_dir}/tokens.bin")
@@ -127,7 +115,7 @@ def train(pt_dir, run_dir, hours):
         save_steps=500, save_total_limit=2,                  # ~20 min on H100, ~50 on A100 (estimated, not measured)
         logging_steps=50, report_to="none", seed=0, dataloader_num_workers=2)
     trainer = Trainer(model=model, args=args, train_dataset=ds, data_collator=default_data_collator,
-                      callbacks=[StopAfter(float(hours))])
+                      callbacks=[StopAfter(float(stop_at))])
     os.makedirs(run_dir, exist_ok=True)
     trainer.train(resume_from_checkpoint=get_last_checkpoint(run_dir))
     if trainer.state.global_step < args.max_steps:
