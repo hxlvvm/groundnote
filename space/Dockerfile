@@ -8,4 +8,4 @@ ENV HOME=/home/user HF_HOME=/home/user/.cache/huggingface
 WORKDIR /home/user/app
 COPY --chown=user groundnote groundnote
 EXPOSE 7860
-CMD ["python", "-m", "groundnote.app", "Opflare1144/groundnote-97m", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["python", "-m", "groundnote.app", "Opflare1144/groundnote-239m", "--host", "0.0.0.0", "--port", "7860"]
