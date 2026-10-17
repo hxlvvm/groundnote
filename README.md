@@ -61,7 +61,8 @@ a bar fixed in advance in [GATE.md](GATE.md):
   domain shift: 63% of training examples are synthetic (18,004 of 28,454).
 - **Detected contradictions are 4.4% of clauses on ACI test1** (gold 3.8%, 97.5M model 2.7%). The rise is probably
   because more clauses now match the transcript closely enough to reach the polarity check. Most clauses still never
-  do, and value swaps (golf instead of football) count as unsupported, not contradicted.
+  do. Value swaps count as unsupported, not contradicted (basketball instead of skiing), and can even pass as
+  supported (medial instead of the outside of the knee); both are on the real knee example.
 - **The synthetic rows are scored against gold fact labels, not the checker:**
   - fact recall 83.5%;
   - 3.2% of facts the patient *denied* appear in the note as present (28 of 869), which is the knee-locked error.
