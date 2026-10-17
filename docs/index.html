@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>groundnote</title>
+<meta name="description" content="A clinical-note model trained from scratch, and a checker that reads every clause back against the transcript.">
+<style>
+  :root { --bg:#fff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0; --card:#f6f8fa; --ok:#1a7f37; --warn:#9a6700; --bad:#cf222e; --link:#0969da; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --line:#3d444d; --card:#151b23; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --link:#4493f8; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 2rem; margin: 0 0 4px; } h2 { font-size: 1.2rem; margin: 36px 0 10px; }
+  p, li { color: var(--fg); } .muted { color: var(--muted); }
+  a { color: var(--link); }
+  .legend span { margin-right: 14px; white-space: nowrap; }
+  .u { border-bottom: 2px solid; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; text-decoration: none; color: var(--fg); display: block; }
+  .card:hover { border-color: var(--link); }
+  .card b { display: block; margin-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .note { border-left: 3px solid var(--warn); padding: 4px 12px; color: var(--muted); }
+  code { background: var(--card); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>groundnote</h1>
+  <p class="muted">A doctor–patient conversation goes in. A sectioned clinical note comes out, and every clause is
+  checked against the transcript.</p>
+
+  <p>The model has 97.5M parameters, and every weight was trained from scratch. The checker underlines each clause
+  of the note:</p>
+  <p class="legend">
+    <span><span class="u" style="border-color:var(--ok)">supported</span></span>
+    <span><span class="u" style="border-color:var(--warn)">not found in the transcript</span></span>
+    <span><span class="u" style="border-color:var(--bad)">contradicts the transcript</span></span>
+  </p>
+  <p>It was built for one failure in particular. The patient says <i>"No, it doesn't"</i> to <i>"Has your knee
+  locked?"</i>, and a small model writes <i>"the knee locked"</i>.</p>
+
+  <h2>Examples</h2>
+  <p class="muted">Both visits come from held-out test sets the model never trained on, and were picked by a fixed
+  rule, not for looks. Hover over a clause to see the transcript turn it rests on.</p>
+  <div class="cards">
+    <a class="card" href="example_synthetic.html"><b>Hand numbness visit, in-domain</b>
+      <span class="muted">The first synthetic test encounter that mentions the word "knee" (here only in passing).
+      This is the same kind of conversation the model trained on. 5 s on a CPU.</span></a>
+    <a class="card" href="example_knee.html"><b>Knee visit, real benchmark</b>
+      <span class="muted">ACI-Bench test1 D2N126. On real conversations the model invents details, such as a
+      fracture and a diagnosis that were never mentioned, and the checker flags them.</span></a>
+  </div>
+
+  <h2>Numbers</h2>
+  <table>
+    <tr><th>Held-out test set</th><th>ROUGE-1</th><th>Clauses not found in transcript<br>model / gold note</th></tr>
+    <tr><td>ACI-Bench test1, real visits (40)</td><td>44.0</td><td>84% / 37%</td></tr>
+    <tr><td>Synthetic, in-domain (200)</td><td>73.1</td><td>45% / 23%</td></tr>
+  </table>
+  <p>On synthetic visits, 7.6% of the facts the patient denied still appear in the note as present. Reranking four
+  samples with the checker brings that to 6.4%.</p>
+  <p>A full note takes about 30 s on a 4-core laptop CPU for a long visit, and 6 s for a short one.</p>
+  <p class="note">Honest status: the model gets the note's structure and many facts right, but it hallucinates on
+  real conversations. The gap between 84% and 37% is the problem this project measures and works on. A 239M model,
+  also trained from scratch, is being trained now. It replaces this one only if it clears a bar fixed in advance.</p>
+
+  <h2>Run it yourself</h2>
+  <p>The code is MIT-licensed and the weights are CC BY 4.0. It runs offline on your own machine:</p>
+  <p><code>python -m groundnote.app Opflare1144/groundnote-97m</code> starts a web page at <code>localhost:8000</code>. Paste a
+  transcript, get the checked note.</p>
+  <p><a href="https://github.com/hxlvvm/groundnote">Code and instructions on GitHub</a> ·
+     <a href="https://huggingface.co/Opflare1144/groundnote-97m">Weights on Hugging Face</a> ·
+     <a href="https://huggingface.co/spaces/Opflare1144/groundnote">Live demo</a></p>
+
+  <p class="muted" style="margin-top:40px">Research prototype, not for clinical use. Example transcripts are
+  synthetic or from ACI-Bench (CC BY 4.0, Yim et al. 2023).</p>
+</main>
+</body>
+</html>

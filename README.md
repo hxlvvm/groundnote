@@ -96,7 +96,29 @@ terms forbid training on their outputs were excluded.
   - ≥ 75% of numbers in the note actually spoken.
 - GLM-4.5-Air failed it, at 58.7% unsupported and 56% grounded numbers, so its shards were never generated.
 
-## Use
+## Try it
+
+- **Live demo:** [huggingface.co/spaces/Opflare1144/groundnote](https://huggingface.co/spaces/Opflare1144/groundnote).
+  A sample transcript is already filled in, and the free CPU takes up to about a minute per note.
+- **Example output:** [a held-out real knee visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_knee.html)
+  (ACI-Bench test1 D2N126, CC BY 4.0) and
+  [an in-domain synthetic visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_synthetic.html).
+  The note sits beside the transcript, every clause is coloured by its verdict, and hovering a clause shows the
+  transcript turn it rests on.
+- **Weights:** [Opflare1144/groundnote-97m](https://huggingface.co/Opflare1144/groundnote-97m).
+
+**Run it on your own machine.** CPU is enough, and nothing leaves the machine:
+
+```bash
+pip install torch==2.13.0 transformers==5.17.0
+python -m groundnote.app Opflare1144/groundnote-97m                    # web page at http://localhost:8000
+python -m groundnote.scribe Opflare1144/groundnote-97m visit.txt --html note.html   # the same from the command line
+```
+
+A transcript is one turn per line, written as `Doctor: ...` / `Patient: ...`. A long visit takes about 30 s on a
+laptop CPU. `space/` holds the Dockerfile for the Space.
+
+## Train and evaluate
 
 ```bash
 pip install -r requirements.txt                      # vllm is only needed to generate data
@@ -105,12 +127,9 @@ python -m scripts.prep_data DATA_DIR "DATA_DIR/full_*.jsonl"   # ACI-Bench + MTS
 python -m scripts.train runs/scratch DATA_DIR --epochs 8   # --stop-at EPOCH_SECONDS: checkpoint and stop; rerun resumes
 python -m scripts.generate runs/scratch/final DATA_DIR/test.jsonl pred.jsonl
 python -m scripts.evaluate pred.jsonl
-
-# one transcript ("Doctor: ..." / "Patient: ..." lines), checked clause by clause, plus an HTML view
-python -m groundnote.scribe runs/scratch/final visit.txt --n-best 4 --html note.html
 ```
 
-Model weights and the synthetic corpus are not released yet. `python -m pytest` runs the checker and format tests.
+The synthetic corpus is not released yet. `python -m pytest` runs the tests.
 
 ## Limits
 
@@ -121,4 +140,5 @@ Model weights and the synthetic corpus are not released yet. `python -m pytest` 
 
 ## Licence
 
-MIT for the code. Data sources keep their own licences (above).
+MIT for the code. The released weights are CC BY 4.0, because they were trained on CC BY 4.0 data (ACI-Bench,
+MTS-Dialog) and on Apache-2.0 model outputs. The data sources keep their own licences (above).
