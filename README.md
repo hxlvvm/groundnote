@@ -56,7 +56,21 @@ runs offline next to the model.
 - **Best-of-4 reranking with the checker** brings that to 6.4% (56/869) and recall to 62.7% on the same 200
   encounters. It costs 1.6× the decoding time and about 8 ROUGE-1 on ACI test1 (36.0 vs 44.0).
 
-<!-- PENDING: SmolLM2-135M ablation row, CPU latency -->
+**CPU, laptop-class.** 4 cores, the 5 ACI test1 encounters, full note including the 6–7 forced sections:
+
+| | per note |
+|---|---|
+| median | 32 s |
+| range | 6–64 s |
+
+- ACI transcripts are long, about 1,500 words each. The 6 s note is the shortest visit.
+- The K/V cache is carried across sections, so the transcript is read once rather than once per section.
+  That made notes 2–12× faster, with output identical word for word.
+
+**In progress.** A 239M-parameter model, also trained from scratch, pretrained on 3B tokens of FineWeb-Edu and then
+fine-tuned on the same data. It replaces the 97.5M model only if it passes the bar fixed in advance in
+[GATE.md](GATE.md). A SmolLM2-135M fine-tune (pretrained by Hugging Face) is being run alongside it as a
+reference point.
 
 ## Data
 
@@ -88,7 +102,7 @@ terms forbid training on their outputs were excluded.
 pip install -r requirements.txt                      # vllm is only needed to generate data
 
 python -m scripts.prep_data DATA_DIR "DATA_DIR/full_*.jsonl"   # ACI-Bench + MTS-Dialog + synthetic -> train/dev/test.jsonl
-python -m scripts.train runs/scratch DATA_DIR --epochs 8
+python -m scripts.train runs/scratch DATA_DIR --epochs 8   # --stop-at EPOCH_SECONDS: checkpoint and stop; rerun resumes
 python -m scripts.generate runs/scratch/final DATA_DIR/test.jsonl pred.jsonl
 python -m scripts.evaluate pred.jsonl
 
