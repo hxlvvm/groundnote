@@ -36,10 +36,14 @@
   <p>The model has 97.5M parameters, and every weight was trained from scratch. The checker underlines each clause
   of the note:</p>
   <p class="legend">
-    <span><span class="u" style="border-color:var(--ok)">supported</span></span>
-    <span><span class="u" style="border-color:var(--warn)">not found in the transcript</span></span>
-    <span><span class="u" style="border-color:var(--bad)">contradicts the transcript</span></span>
+    <span><span class="u" style="border-color:var(--ok)">words found in transcript</span></span>
+    <span><span class="u" style="border-color:var(--warn)">not found in transcript</span></span>
+    <span><span class="u" style="border-color:var(--bad)">contradicts transcript</span></span>
+    <span><span class="u" style="border-color:var(--muted)">unclear</span></span>
   </p>
+  <p>The checker is lexical. It flags some inventions, and green means lexical overlap only. It has passed a wrong
+  diagnosis ("sprain") and a drug filed under allergies on the real knee visit, and an MRI nobody ordered on the
+  knee-locking visit.</p>
   <p>It was built for one failure in particular. The patient says <i>"No, it doesn't"</i> to <i>"Has your knee
   locked?"</i>, and a small model writes <i>"the knee locked"</i>.</p>
 
@@ -50,13 +54,14 @@
     <a class="card" href="example_locking.html"><b>"Has your knee locked?" "No, it doesn't."</b>
       <span class="muted">A short fictional visit built around the classic failure. The model writes "denies joint
       locking", which is correct, and the checker flags the two clauses it got backwards (instability, limited range
-      of motion). It also invents a meniscus tear and an MRI. 4 s on a CPU.</span></a>
+      of motion). It also invents a meniscus tear and an MRI, and the checker passes the MRI. 4 s on a CPU.</span></a>
     <a class="card" href="example_synthetic.html"><b>Hand numbness visit, in-domain</b>
       <span class="muted">The first synthetic test encounter that mentions the word "knee" (here only in passing).
       This is the same kind of conversation the model trained on. 5 s on a CPU.</span></a>
     <a class="card" href="example_knee.html"><b>Knee visit, real benchmark</b>
-      <span class="muted">ACI-Bench test1 D2N126. On real conversations the model invents details, such as a
-      fracture and a diagnosis that were never mentioned, and the checker flags them.</span></a>
+      <span class="muted">ACI-Bench test1 D2N126. On real conversations the model invents details. The checker
+      flags some, such as a fracture nobody mentioned, but marks a wrong diagnosis ("sprain") and a drug filed under
+      allergies green.</span></a>
   </div>
 
   <h2>Numbers</h2>
@@ -67,7 +72,7 @@
   </table>
   <p>On synthetic visits, 7.6% of the facts the patient denied still appear in the note as present. Reranking four
   samples with the checker brings that to 6.4%.</p>
-  <p>A full note takes about 30 s on a 4-core laptop CPU for a long visit, and 6 s for a short one.</p>
+  <p>A full note takes a median 32 s (6–64 s) on a 4-core CPU.</p>
   <p class="note">Honest status: the model gets the note's structure and many facts right, but it hallucinates on
   real conversations. The gap between 84% and 37% is the problem this project measures and works on. A 239M model,
   also trained from scratch, is being trained now. It replaces this one only if it clears a bar fixed in advance.</p>

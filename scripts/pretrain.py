@@ -123,7 +123,10 @@ def train(pt_dir, run_dir, stop_at):
         return
     trainer.save_model(f"{run_dir}/final")
     tk.save_pretrained(f"{run_dir}/final")
-    print("val", trainer.evaluate(Slices(f"{pt_dir}/val.bin")))
+    try:                                                     # logging only: must not block the fine-tune hand-off
+        print("val", trainer.evaluate(Slices(f"{pt_dir}/val.bin")))
+    except Exception as e:
+        print("val eval failed:", repr(e))
 
 
 if __name__ == "__main__":

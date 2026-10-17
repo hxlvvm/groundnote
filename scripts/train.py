@@ -28,6 +28,12 @@ class StopAfter(TrainerCallback):
         if time.time() > self.end:
             control.should_save = control.should_training_stop = self.fired = True
 
+    def on_epoch_end(self, args, state, control, **kw):
+        # after a mid-epoch deadline stop, skip the partial-epoch eval (a fake early-stopping strike) and the second
+        # save; a stop exactly on an epoch boundary evaluates normally
+        if self.fired and abs(state.epoch - round(state.epoch)) > 1e-6:
+            control.should_evaluate = control.should_save = False
+
 
 def load(path, limit=None):
     rows = [json.loads(l) for l in open(path)]
@@ -106,14 +112,18 @@ def main():
     pad = DataCollatorForSeq2Seq(tok, padding=True, label_pad_token_id=-100)
     trainer = Trainer(model=model, args=args, train_dataset=tr, eval_dataset=dv, processing_class=tok,
                       data_collator=lambda b: pad([{k: v for k, v in x.items() if k != "length"} for x in b]),
-                      callbacks=[EarlyStoppingCallback(early_stopping_patience=1)] + [stop] * bool(a.stop_at))
+                      callbacks=[es := EarlyStoppingCallback(early_stopping_patience=1)] + [stop] * bool(a.stop_at))
     trainer.train(resume_from_checkpoint=get_last_checkpoint(a.run_dir))
-    if stop.fired and trainer.state.global_step < trainer.state.max_steps:   # deadline hit; early stopping finishes
+    early = es.early_stopping_patience_counter >= es.early_stopping_patience
+    if stop.fired and trainer.state.global_step < trainer.state.max_steps and not early:   # deadline: resume next link
         print(f"stopped at step {trainer.state.global_step}/{trainer.state.max_steps}; rerun to resume")
         return
     trainer.save_model(f"{a.run_dir}/final")
     tok.save_pretrained(f"{a.run_dir}/final")
-    print("final eval", trainer.evaluate())
+    try:                                                     # logging only: must not block the chain's hand-off
+        print("final eval", trainer.evaluate())
+    except Exception as e:
+        print("final eval failed:", repr(e))
 
 
 if __name__ == "__main__":

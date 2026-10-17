@@ -48,8 +48,9 @@ runs offline next to the model.
   found in the transcript. For gold notes the figure is 37%, because doctors paraphrase and add exam findings. That
   gap is the hallucination problem. It is much smaller on synthetic data (45% vs 23%), so most of it is domain
   shift: 63% of training examples are synthetic (18,004 of 28,454).
-- **Contradictions are rare everywhere,** at or below the gold-note rate. The checker counts a gold clause as
-  "contradicted" whenever it disagrees with the transcript, so 3–5% is roughly the checker's own false-alarm floor.
+- **Detected contradictions are 2.7% of clauses on ACI test1** (gold 3.8%), but most model clauses never match the
+  transcript closely enough to reach the polarity check, and value swaps (golf instead of football) count as
+  unsupported, not contradicted.
 - **The synthetic rows are scored against gold fact labels, not the checker:**
   - fact recall 60.4%;
   - 7.6% of facts the patient *denied* appear in the note as present (66 of 869), which is the knee-locked error.
@@ -67,7 +68,7 @@ runs offline next to the model.
 - The K/V cache is carried across sections, so the transcript is read once rather than once per section.
   That made notes 2–12× faster, with output identical word for word.
 
-**In progress.** A 239M-parameter model, also trained from scratch, pretrained on 3B tokens of FineWeb-Edu and then
+**In progress.** A 239M-parameter model, also trained from scratch, pretrained on 3.0B tokens of FineWeb-Edu and then
 fine-tuned on the same data. It replaces the 97.5M model only if it passes the bar fixed in advance in
 [GATE.md](GATE.md). A SmolLM2-135M fine-tune (pretrained by Hugging Face) is being run alongside it as a
 reference point.
@@ -100,6 +101,8 @@ terms forbid training on their outputs were excluded.
 
 - **Live demo:** [huggingface.co/spaces/Opflare1144/groundnote](https://huggingface.co/spaces/Opflare1144/groundnote).
   A sample transcript is already filled in, and the free CPU takes up to about a minute per note.
+  **Do not paste real patient information.** On the hosted demo your text is sent to a Hugging Face server; use the
+  sample or an invented visit.
 - **Example output:** [a held-out real knee visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_knee.html)
   (ACI-Bench test1 D2N126, CC BY 4.0) and
   [an in-domain synthetic visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_synthetic.html).
@@ -107,7 +110,8 @@ terms forbid training on their outputs were excluded.
   transcript turn it rests on.
 - **Weights:** [Opflare1144/groundnote-97m](https://huggingface.co/Opflare1144/groundnote-97m).
 
-**Run it on your own machine.** CPU is enough, and nothing leaves the machine:
+**Run it on your own machine.** CPU is enough, and when you run it locally, nothing leaves the machine (the hosted
+demo sends your text to Hugging Face):
 
 ```bash
 pip install torch==2.13.0 transformers==5.17.0
@@ -133,14 +137,16 @@ The synthetic corpus is not released yet. `python -m pytest` runs the tests.
 
 ## Limits
 
-- The checker is lexical. It misses paraphrases with no shared content words, which inflates "unsupported" on
-  every note, gold notes included. It catches the negation flips it was built for.
-  It also misses some inventions that reuse transcript words: on the knee-locking demo it passes an "MRI right
-  knee" plan the doctor never mentioned.
+- The checker is lexical. It flags some inventions; green means lexical overlap only. It has passed a wrong
+  diagnosis ("sprain") and a drug filed under allergies on the real knee visit, and an MRI nobody ordered on the
+  knee-locking demo. It misses paraphrases with no shared content words, which inflates "unsupported" on every
+  note, gold notes included. It catches some of the negation flips it was built for.
 - The training data is mostly one teacher's style, which matches the gap between the synthetic and real-data rows.
 - 120 ACI test encounters is a small sample; differences of 1–2 ROUGE points are within noise.
 
 ## Licence
 
-MIT for the code. The released weights are CC BY 4.0, because they were trained on CC BY 4.0 data (ACI-Bench,
-MTS-Dialog) and on Apache-2.0 model outputs. The data sources keep their own licences (above).
+MIT for the code. We release the weights under CC BY 4.0. Training data: ACI-Bench (Yim et al., 2023) and MTS-Dialog
+(Ben Abacha et al., 2023), both CC BY 4.0; we oversampled ACI-Bench and used MTS-Dialog's back-translated
+augmentation. Synthetic conversations by Gemma 4 31B (Apache-2.0 per its model card). The data sources keep their own
+licences (above).
