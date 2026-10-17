@@ -70,8 +70,24 @@ runs offline next to the model.
 
 **In progress.** A 239M-parameter model, also trained from scratch, pretrained on 3.0B tokens of FineWeb-Edu and then
 fine-tuned on the same data. It replaces the 97.5M model only if it passes the bar fixed in advance in
-[GATE.md](GATE.md). A SmolLM2-135M fine-tune (pretrained by Hugging Face) is being run alongside it as a
-reference point.
+[GATE.md](GATE.md).
+
+**Reference: what pretraining buys.** SmolLM2-135M was pretrained by Hugging Face, so it is *not* from scratch. It
+was fine-tuned on the same data and scored with the same script (greedy):
+
+| | 97.5M from scratch | SmolLM2-135M, pretrained |
+|---|---|---|
+| ACI test1: unsupported clauses (gold 37%) | 84.2% | **72.3%** |
+| ACI test1: ROUGE-1 | **44.0** | 43.1 |
+| MTS-Dialog: ROUGE-1 | 35.9 | **45.8** |
+| Synthetic: fact recall | 60.4% | **82.5%** |
+| Synthetic: denied facts asserted present | 7.6% | **2.3%** |
+| CPU, 4 cores, median per long note | **32 s** | 92 s |
+
+- **Pretraining cuts the negation-flip error by about 3×** and closes some of the real-data gap. That is why the
+  239M model gets its own pretraining run.
+- **SmolLM2 would fail the gate** on ACI ROUGE-1 by 0.9 points, a small difference at n=40.
+- **It is about 3× slower on CPU:** 30 layers and a 49k vocabulary.
 
 ## Data
 
