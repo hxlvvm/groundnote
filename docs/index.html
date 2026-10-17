@@ -44,9 +44,13 @@
   locked?"</i>, and a small model writes <i>"the knee locked"</i>.</p>
 
   <h2>Examples</h2>
-  <p class="muted">Both visits come from held-out test sets the model never trained on, and were picked by a fixed
-  rule, not for looks. Hover over a clause to see the transcript turn it rests on.</p>
+  <p class="muted">The two benchmark visits come from held-out test sets the model never trained on, and were picked by a
+  fixed rule, not for looks. Hover over a clause to see the transcript turn it rests on.</p>
   <div class="cards">
+    <a class="card" href="example_locking.html"><b>"Has your knee locked?" "No, it doesn't."</b>
+      <span class="muted">A short fictional visit built around the classic failure. The model writes "denies joint
+      locking", which is correct, and the checker flags the two clauses it got backwards (instability, limited range
+      of motion). It also invents a meniscus tear and an MRI. 4 s on a CPU.</span></a>
     <a class="card" href="example_synthetic.html"><b>Hand numbness visit, in-domain</b>
       <span class="muted">The first synthetic test encounter that mentions the word "knee" (here only in passing).
       This is the same kind of conversation the model trained on. 5 s on a CPU.</span></a>

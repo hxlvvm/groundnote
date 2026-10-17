@@ -135,6 +135,8 @@ The synthetic corpus is not released yet. `python -m pytest` runs the tests.
 
 - The checker is lexical. It misses paraphrases with no shared content words, which inflates "unsupported" on
   every note, gold notes included. It catches the negation flips it was built for.
+  It also misses some inventions that reuse transcript words: on the knee-locking demo it passes an "MRI right
+  knee" plan the doctor never mentioned.
 - The training data is mostly one teacher's style, which matches the gap between the synthetic and real-data rows.
 - 120 ACI test encounters is a small sample; differences of 1–2 ROUGE points are within noise.
 
