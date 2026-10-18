@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>groundnote demo</title>
+<meta name="description" content="Write a clinical note from a transcript and check every clause, entirely in your browser.">
+<style>
+  :root { --bg:#fff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0; --card:#f6f8fa; --warn:#9a6700; --link:#0969da; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --line:#3d444d; --card:#151b23; --warn:#d29922; --link:#4493f8; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 2rem; margin: 0 0 4px; }
+  .muted { color: var(--muted); } a { color: var(--link); }
+  .note { border-left: 3px solid var(--warn); padding: 4px 12px; color: var(--muted); }
+  textarea { width: 100%; font: 14px/1.45 ui-monospace, monospace; background: var(--card); color: var(--fg);
+             border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  button { font: inherit; padding: 8px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--link);
+           color: #fff; cursor: pointer; } button:disabled { opacity: .5; cursor: wait; }
+  iframe { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff; margin-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>groundnote demo</h1>
+  <p class="muted">A doctor–patient transcript goes in. A 239M model trained from scratch writes the note, and a lexical
+  checker underlines every clause by whether its words appear in the transcript.</p>
+  <p class="note"><b>Everything runs in your browser.</b> Your text never leaves this page. The first run downloads the
+  model (about 480 MB, cached after that) and a Python runtime for the checker. A long visit takes about a minute.
+  Research prototype, not for clinical use: do not paste real patient information.</p>
+  <label for="t">Transcript, one turn per line: <code>Doctor: ...</code> / <code>Patient: ...</code></label>
+  <textarea id="t" rows="14">Doctor: Hi, what brings you in today?
+Patient: My right knee has been hurting since I twisted it playing football two weeks ago.
+Doctor: Has your knee locked or given way?
+Patient: No, it doesn't lock. It just swells up after I walk a lot.
+Doctor: Any numbness or tingling in the leg?
+Patient: No.
+Doctor: Are you taking anything for the pain?
+Patient: Ibuprofen, 400 milligrams, twice a day.
+Doctor: Any allergies to medications?
+Patient: Penicillin, it gives me a rash.
+Doctor: On exam there is mild swelling over the right knee, no instability, full range of motion.
+Doctor: This looks like a knee sprain. Rest, ice, and a knee brace, and come back in two weeks if it is not better.</textarea>
+  <p><button id="go">Write the note</button> <span id="status" class="muted" role="status" aria-live="polite"></span></p>
+  <iframe id="out" title="Checked note" hidden></iframe>
+  <p class="muted"><a href="./">About groundnote</a> · <a href="https://github.com/hxlvvm/groundnote">Code</a> ·
+  <a href="https://huggingface.co/Opflare1144/groundnote-239m">Weights</a></p>
+</main>
+<script type="module">
+import * as T from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.web.min.js";
+import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.mjs";
+import { writeNote } from "./note.js";
+
+// fp16 storage, fp32 compute (ORT casts the weights back at load): half the download, same notes as the full model
+// shortcut: tracks main, not a pinned commit; pin REVISION if the ONNX file is ever re-uploaded
+const MODEL = "Opflare1144/groundnote-239m", REVISION = "main", FILE = "model_f16w";
+const MAX_BYTES = 30000, MAX_TURNS = 300;                    // same caps as groundnote/app.py
+const $ = (id) => document.getElementById(id), say = (s) => { $("status").textContent = s; };
+let py, model, tok;
+
+async function loadChecker() {
+    py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/" });
+    py.FS.mkdirTree("/home/pyodide/groundnote");
+    for (const f of ["check.py", "render.py", "df.json"]) {   // the repo's own checker, unchanged
+        const r = await fetch(`groundnote/${f}`);
+        if (!r.ok) throw new Error(`could not load groundnote/${f} (${r.status})`);
+        py.FS.writeFile(`/home/pyodide/groundnote/${f}`, await r.text());
+    }
+    py.runPython("import sys; sys.path.insert(0, '/home/pyodide')\n"
+                 + "from groundnote.check import parse_dialogue\nfrom groundnote.render import render_html");
+}
+
+async function loadModel() {
+    const progress = (p) => {
+        if (p.status === "progress" && p.file.endsWith(".onnx")) say(`Downloading the model: ${Math.round(p.loaded / 1e6)} / ${Math.round(p.total / 1e6)} MB`);
+    };
+    tok = await T.AutoTokenizer.from_pretrained(MODEL, { revision: REVISION });
+    model = await T.AutoModelForCausalLM.from_pretrained(MODEL, { revision: REVISION, dtype: "fp32", model_file_name: FILE, device: "wasm", progress_callback: progress });
+}
+
+$("go").onclick = async () => {
+    $("go").disabled = true;
+    try {
+        const text = $("t").value;
+        if (new TextEncoder().encode(text).length > MAX_BYTES) return say(`Too long (over ${MAX_BYTES / 1000} KB).`);
+        if (!py) { say("Loading the checker (Python in your browser)…"); await loadChecker(); }
+        py.globals.set("raw", text);
+        const n = py.runPython("turns = parse_dialogue(raw)\nlen(turns)");
+        if (!n) return say("No 'Doctor:' / 'Patient:' lines found.");
+        if (n > MAX_TURNS) return say(`Too many turns (over ${MAX_TURNS}).`);
+        if (!model) { say("Downloading the model…"); await loadModel(); }
+        const dialogue = py.runPython('"\\n".join(f"{s.capitalize()}: {u}" for s, u in turns)');
+        const t0 = performance.now();
+        const sections = await writeNote(T, model, tok, dialogue, {
+            onToken: (h, k) => say(`Writing ${h.toLowerCase()}… ${k} tokens (${((performance.now() - t0) / 1000).toFixed(0)} s)`),
+        });
+        py.globals.set("sections", py.toPy(sections));
+        const out = $("out");
+        out.onload = () => { out.style.height = out.contentDocument.documentElement.scrollHeight + 24 + "px"; };
+        out.srcdoc = py.runPython("render_html([tuple(s) for s in sections], turns)");
+        out.hidden = false;
+        say(`Done in ${((performance.now() - t0) / 1000).toFixed(0)} s. Hover a clause for the transcript turn it rests on.`);
+    } catch (e) {
+        console.error(e);
+        say(`Something went wrong: ${e.message}`);
+    } finally {
+        $("go").disabled = false;
+    }
+};
+</script>
+</body>
+</html>

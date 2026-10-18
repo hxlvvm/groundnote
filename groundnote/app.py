@@ -32,7 +32,7 @@ Doctor: This looks like a knee sprain. Rest, ice, and a knee brace, and come bac
 FORM = ("<!doctype html><meta charset=utf-8><title>groundnote</title><body style='font:15px system-ui;max-width:900px;"
         "margin:auto;padding:16px'><h2>groundnote</h2><p>Paste a transcript, one turn per line: <code>Doctor: ...</code> "
         "/ <code>Patient: ...</code>. Writing the note takes from a few seconds up to a couple of minutes. Research prototype, not for clinical "
-        "use.</p><p><b>Do not paste real patient information.</b> On the hosted demo your text is sent to a Hugging Face "
+        "use.</p><p><b>Do not paste real patient information.</b> If this page is hosted, your text is sent to its "
         "server; use the sample or an invented visit.</p><form method=post><textarea name=t rows=22 style='width:100%'>{}"
         "</textarea><p>{}<button>Write note</button></p></form>")
 

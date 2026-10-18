@@ -127,6 +127,10 @@ terms forbid training on their outputs were excluded.
 
 ## Try it
 
+- **Live demo:** [groundnote.vercel.app/demo.html](https://groundnote.vercel.app/demo.html). The model and the checker
+  run in your browser, so your text never leaves the page. The first run downloads about 480 MB, cached after that.
+  The browser copy stores the weights as fp16 and computes in fp32. On the gate test sets it scores ACI test1
+  ROUGE-1 48.3 with 73.1% unsupported, and 3.2% denied facts written as present, so it clears [GATE.md](GATE.md) too.
 - **Project page:** [groundnote.vercel.app](https://groundnote.vercel.app).
 - **Example output:** [a held-out real knee visit](https://groundnote.vercel.app/example_knee.html)
   (ACI-Bench test1 D2N126, CC BY 4.0) and
@@ -136,7 +140,7 @@ terms forbid training on their outputs were excluded.
   by its verdict, and hovering a clause shows the transcript turn it rests on. All three come from the 239M model.
 - **Weights:** [Opflare1144/groundnote-239m](https://huggingface.co/Opflare1144/groundnote-239m).
 
-**Run it on your own machine.** There is no hosted demo. CPU is enough, and nothing leaves the machine:
+**Run it on your own machine.** CPU is enough, and nothing leaves the machine:
 
 ```bash
 pip install torch==2.13.0 transformers==5.17.0
