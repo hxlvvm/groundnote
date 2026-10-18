@@ -127,21 +127,15 @@ terms forbid training on their outputs were excluded.
 
 ## Try it
 
-- **Live demo** (being published; the link resolves once it is up):
-  [huggingface.co/spaces/Opflare1144/groundnote](https://huggingface.co/spaces/Opflare1144/groundnote).
-  A sample transcript is already filled in, and the free CPU takes up to a couple of minutes per note.
-  **Do not paste real patient information.** On the hosted demo your text is sent to a Hugging Face server; use the
-  sample or an invented visit.
 - **Example output:** [a held-out real knee visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_knee.html)
   (ACI-Bench test1 D2N126, CC BY 4.0) and
   [an in-domain synthetic visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_synthetic.html).
   [The knee-locking visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_locking.html)
   is the fictional case the checker was built around. The note sits beside the transcript, every clause is coloured
   by its verdict, and hovering a clause shows the transcript turn it rests on. All three come from the 239M model.
-- **Weights** (being published): [Opflare1144/groundnote-239m](https://huggingface.co/Opflare1144/groundnote-239m).
+- **Weights:** [Opflare1144/groundnote-239m](https://huggingface.co/Opflare1144/groundnote-239m).
 
-**Run it on your own machine.** CPU is enough, and when you run it locally, nothing leaves the machine (the hosted
-demo sends your text to Hugging Face):
+**Run it on your own machine.** There is no hosted demo. CPU is enough, and nothing leaves the machine:
 
 ```bash
 pip install torch==2.13.0 transformers==5.17.0
@@ -150,7 +144,8 @@ python -m groundnote.scribe Opflare1144/groundnote-239m visit.txt --html note.ht
 ```
 
 A transcript is one turn per line, written as `Doctor: ...` / `Patient: ...`. A long visit takes about 30 s on a
-laptop CPU. `space/` holds the Dockerfile for the Space.
+laptop CPU. The page opens with a sample transcript filled in. `space/` holds a Dockerfile that serves the same page
+from a container, for example as a Hugging Face Docker Space (paid hardware).
 
 ## Train and evaluate
 
