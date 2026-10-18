@@ -127,10 +127,11 @@ terms forbid training on their outputs were excluded.
 
 ## Try it
 
-- **Example output:** [a held-out real knee visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_knee.html)
+- **Project page:** [groundnote.vercel.app](https://groundnote.vercel.app).
+- **Example output:** [a held-out real knee visit](https://groundnote.vercel.app/example_knee.html)
   (ACI-Bench test1 D2N126, CC BY 4.0) and
-  [an in-domain synthetic visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_synthetic.html).
-  [The knee-locking visit](https://htmlpreview.github.io/?https://github.com/hxlvvm/groundnote/blob/master/docs/example_locking.html)
+  [an in-domain synthetic visit](https://groundnote.vercel.app/example_synthetic.html).
+  [The knee-locking visit](https://groundnote.vercel.app/example_locking.html)
   is the fictional case the checker was built around. The note sits beside the transcript, every clause is coloured
   by its verdict, and hovering a clause shows the transcript turn it rests on. All three come from the 239M model.
 - **Weights:** [Opflare1144/groundnote-239m](https://huggingface.co/Opflare1144/groundnote-239m).
